@@ -1,0 +1,14 @@
+
+
+FIRST MAME U GUEST ACCOUNT 
+
+
+
+GITUP FOLDER NAME 
+
+Pb2/
+
+
+LAST EMOTE API 
+
+Your Url/join?tc={tc}&uid1={uid1}&uid2={uid2}&uid3={uid3}&uid4={uid4}&uid5={uid5}&uid6={uid6}&emote_id={emote_id
