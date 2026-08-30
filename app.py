@@ -31,12 +31,12 @@ Chat_Leave = False
 app = Flask(__name__)
 
 Hr = {
-    'User-Agent': "Mozilla/5.0 (Linux; Android 12; SM-G9980) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.5359.128 Mobile Safari/537.36",
+    'User-Agent': "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36",
     'Connection': "Keep-Alive",
     'Accept-Encoding': "gzip",
     'Content-Type': "application/x-www-form-urlencoded",
     'Expect': "100-continue",
-    'X-Unity-Version': "2018.4.11f1",
+    'X-Unity-Version': "2019.4.40f1",
     'X-GA': "v1 1",
     'ReleaseVersion': "OB54"}
 
