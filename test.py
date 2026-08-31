@@ -211,15 +211,6 @@ def generate_user_agent(device_profile=None):
     android_version = device_profile['android_version']
     device_model = device_profile['device'].replace(' ', '_')
     
-    # Map Android versions to SDK versions
-    sdk_map = {
-        '11': 30,
-        '12': 31,
-        '13': 33,
-        '14': 34
-    }
-    sdk = sdk_map.get(android_version, 33)
-    
     # Random build version
     build_id = f"TP1A.220624.{random.randint(100, 999)}"
     if android_version == '11':
@@ -690,9 +681,9 @@ async def TcPChaT(account: BotAccount, AutHToKen, LoGinDaTaUncRypTinG, ready_eve
                                 V = await SEnd_InV(5, uid, account.key, account.iv, account.region)
                                 await asyncio.sleep(0.5)
                                 await SEndPacKeT(account, 'OnLine', V)
-                                E = await ExiT(account.target_uid, account.key, account.iv)
-                                await asyncio.sleep(3)
-                                await SEndPacKeT(account, 'OnLine', E)
+                                # E = await ExiT(account.target_uid, account.key, account.iv)  # COMMENTED OUT
+                                # await asyncio.sleep(3)
+                                # await SEndPacKeT(account, 'OnLine', E)
                             except: pass
 
                         # help command
@@ -741,8 +732,8 @@ async def perform_emote(account: BotAccount, team_code: str, uids: list, emote_i
             await SEndPacKeT(account, 'OnLine', H)
             
         await asyncio.sleep(0.5)
-        LV = await ExiT(account.target_uid, account.key, account.iv)
-        await SEndPacKeT(account, 'OnLine', LV)
+        # LV = await ExiT(account.target_uid, account.key, account.iv)  # COMMENTED OUT
+        # await SEndPacKeT(account, 'OnLine', LV)
         return {"status": "success"}
     except Exception as e:
         print(f"[Bot {account.account_index}] Perform emote error: {e}")
