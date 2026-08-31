@@ -64,187 +64,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 loop = None
 accounts = []  # List holding BotAccount instances
 
-# ============================================================
-#  200+ DEVICE PROFILES (Pakistani Cities)
-# ============================================================
-DEVICE_PROFILES = [
-    # Samsung Devices
-    {"device": "SM-S918B", "carrier": "Jazz", "city": "Karachi", "gpu": "Adreno 740"},
-    {"device": "SM-S918B", "carrier": "Zong", "city": "Lahore", "gpu": "Adreno 740"},
-    {"device": "SM-S918B", "carrier": "Telenor", "city": "Islamabad", "gpu": "Adreno 740"},
-    {"device": "SM-S918B", "carrier": "Ufone", "city": "Rawalpindi", "gpu": "Adreno 740"},
-    {"device": "SM-S908B", "carrier": "Jazz", "city": "Faisalabad", "gpu": "Adreno 730"},
-    {"device": "SM-S908B", "carrier": "Zong", "city": "Multan", "gpu": "Adreno 730"},
-    {"device": "SM-S908B", "carrier": "Telenor", "city": "Peshawar", "gpu": "Adreno 730"},
-    {"device": "SM-S908B", "carrier": "Ufone", "city": "Quetta", "gpu": "Adreno 730"},
-    {"device": "SM-S906B", "carrier": "Jazz", "city": "Sialkot", "gpu": "Adreno 730"},
-    {"device": "SM-S906B", "carrier": "Zong", "city": "Gujranwala", "gpu": "Adreno 730"},
-    {"device": "SM-S906B", "carrier": "Telenor", "city": "Hyderabad", "gpu": "Adreno 730"},
-    {"device": "SM-S906B", "carrier": "Ufone", "city": "Sukkur", "gpu": "Adreno 730"},
-    {"device": "SM-S901B", "carrier": "Jazz", "city": "Karachi", "gpu": "Adreno 730"},
-    {"device": "SM-S901B", "carrier": "Zong", "city": "Lahore", "gpu": "Adreno 730"},
-    {"device": "SM-S901B", "carrier": "Telenor", "city": "Islamabad", "gpu": "Adreno 730"},
-    {"device": "SM-G998B", "carrier": "Jazz", "city": "Rawalpindi", "gpu": "Mali-G78"},
-    {"device": "SM-G998B", "carrier": "Zong", "city": "Faisalabad", "gpu": "Mali-G78"},
-    {"device": "SM-G998B", "carrier": "Telenor", "city": "Multan", "gpu": "Mali-G78"},
-    {"device": "SM-G991B", "carrier": "Jazz", "city": "Peshawar", "gpu": "Mali-G78"},
-    {"device": "SM-G991B", "carrier": "Zong", "city": "Quetta", "gpu": "Mali-G78"},
-    {"device": "SM-G990B", "carrier": "Jazz", "city": "Sialkot", "gpu": "Mali-G77"},
-    {"device": "SM-G990B", "carrier": "Zong", "city": "Gujranwala", "gpu": "Mali-G77"},
-    {"device": "SM-G988B", "carrier": "Jazz", "city": "Hyderabad", "gpu": "Mali-G77"},
-    {"device": "SM-G988B", "carrier": "Zong", "city": "Sukkur", "gpu": "Mali-G77"},
-    {"device": "SM-N986B", "carrier": "Jazz", "city": "Karachi", "gpu": "Mali-G76"},
-    {"device": "SM-N986B", "carrier": "Zong", "city": "Lahore", "gpu": "Mali-G76"},
-    {"device": "SM-N985F", "carrier": "Jazz", "city": "Islamabad", "gpu": "Mali-G76"},
-    {"device": "SM-N985F", "carrier": "Zong", "city": "Rawalpindi", "gpu": "Mali-G76"},
-    {"device": "SM-A736B", "carrier": "Jazz", "city": "Faisalabad", "gpu": "Adreno 618"},
-    {"device": "SM-A736B", "carrier": "Zong", "city": "Multan", "gpu": "Adreno 618"},
-    {"device": "SM-A526B", "carrier": "Jazz", "city": "Peshawar", "gpu": "Adreno 618"},
-    {"device": "SM-A526B", "carrier": "Zong", "city": "Quetta", "gpu": "Adreno 618"},
-    {"device": "SM-A525F", "carrier": "Jazz", "city": "Sialkot", "gpu": "Adreno 618"},
-    {"device": "SM-A525F", "carrier": "Zong", "city": "Gujranwala", "gpu": "Adreno 618"},
-    {"device": "SM-A515F", "carrier": "Jazz", "city": "Hyderabad", "gpu": "Mali-G72"},
-    {"device": "SM-A515F", "carrier": "Zong", "city": "Sukkur", "gpu": "Mali-G72"},
-    {"device": "SM-A325F", "carrier": "Jazz", "city": "Karachi", "gpu": "Mali-G52"},
-    {"device": "SM-A325F", "carrier": "Zong", "city": "Lahore", "gpu": "Mali-G52"},
-    {"device": "SM-A125F", "carrier": "Jazz", "city": "Islamabad", "gpu": "PowerVR GE8320"},
-    {"device": "SM-A125F", "carrier": "Zong", "city": "Rawalpindi", "gpu": "PowerVR GE8320"},
-    {"device": "SM-M515F", "carrier": "Jazz", "city": "Faisalabad", "gpu": "Mali-G76"},
-    {"device": "SM-M515F", "carrier": "Zong", "city": "Multan", "gpu": "Mali-G76"},
-    {"device": "SM-M315F", "carrier": "Jazz", "city": "Peshawar", "gpu": "Mali-G52"},
-    {"device": "SM-M315F", "carrier": "Zong", "city": "Quetta", "gpu": "Mali-G52"},
-    {"device": "SM-F936B", "carrier": "Jazz", "city": "Karachi", "gpu": "Adreno 730"},
-    {"device": "SM-F936B", "carrier": "Zong", "city": "Lahore", "gpu": "Adreno 730"},
-    {"device": "SM-F926B", "carrier": "Jazz", "city": "Islamabad", "gpu": "Adreno 660"},
-    {"device": "SM-F926B", "carrier": "Zong", "city": "Rawalpindi", "gpu": "Adreno 660"},
-    # OnePlus Devices
-    {"device": "OnePlus 11", "carrier": "Jazz", "city": "Karachi", "gpu": "Adreno 740"},
-    {"device": "OnePlus 11", "carrier": "Zong", "city": "Lahore", "gpu": "Adreno 740"},
-    {"device": "OnePlus 11", "carrier": "Telenor", "city": "Islamabad", "gpu": "Adreno 740"},
-    {"device": "OnePlus 10 Pro", "carrier": "Jazz", "city": "Rawalpindi", "gpu": "Adreno 730"},
-    {"device": "OnePlus 10 Pro", "carrier": "Zong", "city": "Faisalabad", "gpu": "Adreno 730"},
-    {"device": "OnePlus 10 Pro", "carrier": "Ufone", "city": "Multan", "gpu": "Adreno 730"},
-    {"device": "OnePlus 10R", "carrier": "Jazz", "city": "Peshawar", "gpu": "Adreno 730"},
-    {"device": "OnePlus 10R", "carrier": "Zong", "city": "Quetta", "gpu": "Adreno 730"},
-    {"device": "OnePlus 9 Pro", "carrier": "Jazz", "city": "Sialkot", "gpu": "Adreno 660"},
-    {"device": "OnePlus 9 Pro", "carrier": "Zong", "city": "Gujranwala", "gpu": "Adreno 660"},
-    {"device": "OnePlus 9", "carrier": "Jazz", "city": "Karachi", "gpu": "Adreno 660"},
-    {"device": "OnePlus 9", "carrier": "Zong", "city": "Lahore", "gpu": "Adreno 660"},
-    # Xiaomi Devices
-    {"device": "Xiaomi 13 Pro", "carrier": "Jazz", "city": "Islamabad", "gpu": "Adreno 660"},
-    {"device": "Xiaomi 13 Pro", "carrier": "Zong", "city": "Rawalpindi", "gpu": "Adreno 660"},
-    {"device": "Xiaomi 13", "carrier": "Jazz", "city": "Faisalabad", "gpu": "Adreno 660"},
-    {"device": "Xiaomi 13", "carrier": "Zong", "city": "Multan", "gpu": "Adreno 660"},
-    {"device": "Xiaomi 12 Pro", "carrier": "Jazz", "city": "Peshawar", "gpu": "Adreno 730"},
-    {"device": "Xiaomi 12 Pro", "carrier": "Zong", "city": "Quetta", "gpu": "Adreno 730"},
-    {"device": "Xiaomi 12", "carrier": "Jazz", "city": "Karachi", "gpu": "Adreno 730"},
-    {"device": "Xiaomi 12", "carrier": "Zong", "city": "Lahore", "gpu": "Adreno 730"},
-    # Google Pixel Devices
-    {"device": "Pixel 7 Pro", "carrier": "Jazz", "city": "Islamabad", "gpu": "Mali-G78"},
-    {"device": "Pixel 7 Pro", "carrier": "Zong", "city": "Rawalpindi", "gpu": "Mali-G78"},
-    {"device": "Pixel 7", "carrier": "Jazz", "city": "Faisalabad", "gpu": "Mali-G78"},
-    {"device": "Pixel 7", "carrier": "Zong", "city": "Multan", "gpu": "Mali-G78"},
-    {"device": "Pixel 6 Pro", "carrier": "Jazz", "city": "Peshawar", "gpu": "Mali-G78"},
-    {"device": "Pixel 6 Pro", "carrier": "Zong", "city": "Quetta", "gpu": "Mali-G78"},
-    {"device": "Pixel 6", "carrier": "Jazz", "city": "Karachi", "gpu": "Mali-G78"},
-    {"device": "Pixel 6", "carrier": "Zong", "city": "Lahore", "gpu": "Mali-G78"},
-    # Motorola Devices
-    {"device": "Moto Edge 30 Ultra", "carrier": "Jazz", "city": "Sialkot", "gpu": "Adreno 730"},
-    {"device": "Moto Edge 30 Ultra", "carrier": "Zong", "city": "Gujranwala", "gpu": "Adreno 730"},
-    {"device": "Moto Edge 30 Pro", "carrier": "Jazz", "city": "Karachi", "gpu": "Adreno 730"},
-    {"device": "Moto Edge 30 Pro", "carrier": "Zong", "city": "Lahore", "gpu": "Adreno 730"},
-    {"device": "Moto Edge 30", "carrier": "Jazz", "city": "Islamabad", "gpu": "Adreno 642L"},
-    {"device": "Moto Edge 30", "carrier": "Zong", "city": "Rawalpindi", "gpu": "Adreno 642L"},
-    # Apple Devices
-    {"device": "iPhone 15 Pro Max", "carrier": "Jazz", "city": "Karachi", "gpu": "Apple A17"},
-    {"device": "iPhone 15 Pro Max", "carrier": "Zong", "city": "Lahore", "gpu": "Apple A17"},
-    {"device": "iPhone 15 Pro", "carrier": "Jazz", "city": "Islamabad", "gpu": "Apple A17"},
-    {"device": "iPhone 15 Pro", "carrier": "Zong", "city": "Rawalpindi", "gpu": "Apple A17"},
-    {"device": "iPhone 15", "carrier": "Jazz", "city": "Faisalabad", "gpu": "Apple A16"},
-    {"device": "iPhone 15", "carrier": "Zong", "city": "Multan", "gpu": "Apple A16"},
-    # ASUS Devices
-    {"device": "ASUS ROG Phone 7", "carrier": "Jazz", "city": "Karachi", "gpu": "Adreno 740"},
-    {"device": "ASUS ROG Phone 7", "carrier": "Zong", "city": "Lahore", "gpu": "Adreno 740"},
-    {"device": "ASUS ROG Phone 6", "carrier": "Jazz", "city": "Islamabad", "gpu": "Adreno 730"},
-    {"device": "ASUS ROG Phone 6", "carrier": "Zong", "city": "Rawalpindi", "gpu": "Adreno 730"},
-    # Sony Devices
-    {"device": "Sony Xperia 1 V", "carrier": "Jazz", "city": "Karachi", "gpu": "Adreno 740"},
-    {"device": "Sony Xperia 1 V", "carrier": "Zong", "city": "Lahore", "gpu": "Adreno 740"},
-    {"device": "Sony Xperia 5 V", "carrier": "Jazz", "city": "Islamabad", "gpu": "Adreno 740"},
-    {"device": "Sony Xperia 5 V", "carrier": "Zong", "city": "Rawalpindi", "gpu": "Adreno 740"},
-    # Nothing Devices
-    {"device": "Nothing Phone 2", "carrier": "Jazz", "city": "Karachi", "gpu": "Adreno 730"},
-    {"device": "Nothing Phone 2", "carrier": "Zong", "city": "Lahore", "gpu": "Adreno 730"},
-    {"device": "Nothing Phone 1", "carrier": "Jazz", "city": "Islamabad", "gpu": "Adreno 620"},
-    {"device": "Nothing Phone 1", "carrier": "Zong", "city": "Rawalpindi", "gpu": "Adreno 620"},
-    # More devices with Pakistani cities
-    {"device": "SM-S908E", "carrier": "Jazz", "city": "Karachi", "gpu": "Adreno 730"},
-    {"device": "SM-S908E", "carrier": "Zong", "city": "Lahore", "gpu": "Adreno 730"},
-    {"device": "SM-S906E", "carrier": "Jazz", "city": "Islamabad", "gpu": "Adreno 730"},
-    {"device": "SM-S906E", "carrier": "Zong", "city": "Rawalpindi", "gpu": "Adreno 730"},
-    {"device": "SM-S901E", "carrier": "Jazz", "city": "Faisalabad", "gpu": "Adreno 730"},
-    {"device": "SM-S901E", "carrier": "Zong", "city": "Multan", "gpu": "Adreno 730"},
-    {"device": "SM-G996B", "carrier": "Jazz", "city": "Peshawar", "gpu": "Mali-G78"},
-    {"device": "SM-G996B", "carrier": "Zong", "city": "Quetta", "gpu": "Mali-G78"},
-    {"device": "SM-G996B", "carrier": "Telenor", "city": "Sialkot", "gpu": "Mali-G78"},
-    {"device": "SM-G986B", "carrier": "Jazz", "city": "Gujranwala", "gpu": "Mali-G77"},
-    {"device": "SM-G986B", "carrier": "Zong", "city": "Hyderabad", "gpu": "Mali-G77"},
-    {"device": "SM-G986B", "carrier": "Ufone", "city": "Sukkur", "gpu": "Mali-G77"},
-]
-
-ANDROID_VERSIONS = ["11", "12", "13", "14"]
-LANGUAGES = ["en", "ur", "hi", "ar"]
-
-def random_device_info():
-    profile = random.choice(DEVICE_PROFILES)
-    return {
-        **profile,
-        "android_version": random.choice(ANDROID_VERSIONS),
-        "lang": random.choice(LANGUAGES),
-    }
-
-def generate_user_agent(device_profile=None):
-    """Generate a realistic randomized Android user-agent from device profile"""
-    if not device_profile:
-        device_profile = random_device_info()
-    
-    android_version = device_profile['android_version']
-    device_model = device_profile['device'].replace(' ', '_')
-    
-    # Map Android versions to SDK versions
-    sdk_map = {
-        '11': 30,
-        '12': 31,
-        '13': 33,
-        '14': 34
-    }
-    sdk = sdk_map.get(android_version, 33)
-    
-    # Random build version
-    build_id = f"TP1A.220624.{random.randint(100, 999)}"
-    if android_version == '11':
-        build_id = f"RQ3A.210805.{random.randint(100, 999)}"
-    elif android_version == '12':
-        build_id = f"SP1A.210812.{random.randint(100, 999)}"
-    elif android_version == '13':
-        build_id = f"TP1A.220624.{random.randint(100, 999)}"
-    elif android_version == '14':
-        build_id = f"UP1A.231005.{random.randint(100, 999)}"
-    
-    # Different user-agent styles
-    ua_styles = [
-        # Dalvik style (most common in Free Fire)
-        f"Dalvik/2.1.0 (Linux; U; Android {android_version}; {device_model} Build/{build_id})",
-        f"Dalvik/2.1.0 (Linux; U; Android {android_version}; {device_model})",
-        # Chrome WebView style
-        f"Mozilla/5.0 (Linux; Android {android_version}; {device_model}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{random.randint(110, 122)}.0.{random.randint(1000, 9999)}.{random.randint(100, 999)} Mobile Safari/537.36",
-        # Generic Android style
-        f"Mozilla/5.0 (Linux; Android {android_version}; {device_model}; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/{random.randint(110, 122)}.0.{random.randint(1000, 9999)}.{random.randint(100, 999)} Mobile Safari/537.36",
-    ]
-    
-    return random.choice(ua_styles)
-
-# ========== ACCOUNT STATE CLASS ==========
+# ---------- ACCOUNT STATE CLASS ----------
 class BotAccount:
     def __init__(self, uid, password, account_index):
         self.uid = uid
@@ -271,9 +91,6 @@ class BotAccount:
         self.chat_connected = False
         self.online_connected = False
         self.is_busy = False
-        
-        # Device profile for this account
-        self.device_profile = random_device_info()
 
 # ========== SAFE LOGIN FUNCTIONS (from Script 3) ==========
 async def encrypt_plaintext(plaintext, key, iv):
@@ -293,10 +110,9 @@ async def GeT_Key_Iv(serialized_data):
 
 async def Guest_GeneRaTe(uid, password, retry_count=0):
     url = "https://100067.connect.garena.com/oauth/guest/token/grant"
-    device = random_device_info()
     headers = {
         "Host": "100067.connect.garena.com",
-        "User-Agent": generate_user_agent(device),
+        "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 13; SM-A546E Build/TP1A.220624.014)",
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept-Encoding": "gzip, deflate, br",
         "Connection": "close",
@@ -336,39 +152,33 @@ async def ToKen_GeneRaTe(Access_ToKen, Access_Uid):
         PLaFTrom = "4"
         Version = '2024010012'
         V = '1.126.2'
-        
-        # Use random device profile
-        device = random_device_info()
-        
-        # Generate dynamic user-agent
-        user_agent = generate_user_agent(device)
 
         PyL = {
             3: str(datetime.now())[:-7],
             4: "free fire",
             5: 2,
             7: V,
-            8: f"Android OS {device['android_version']} / API-{random.randint(28, 34)} (RQ3A.210805.001)",
+            8: "Android OS 11 / API-30 (RQ3A.210805.001)",
             9: "Handheld",
-            10: device['carrier'],
+            10: "Verizon",
             11: "WIFI",
             12: 1080,
             13: 2400,
             14: "440",
             15: "ARMv8",
             16: 6144,
-            17: device['gpu'],
+            17: "Adreno (TM) 650",
             18: "OpenGL ES 3.2 V@1.50",
             19: "Google|34a7dcdf-a7d5-4cb6-8d7e-3b0e448a0c57",
             20: "",
-            21: device['lang'],
+            21: "en",
             22: Access_Uid,
             23: PLaFTrom,
             24: "Handheld",
-            25: device['device'],
+            25: "google G011A",
             29: Access_ToKen,
             30: 3,
-            41: device['carrier'],
+            41: "Verizon",
             42: "WIFI",
             57: "1ac4b80ecf0478a44203bf8fac6120f5",
             60: 32966,
@@ -414,7 +224,7 @@ async def ToKen_GeneRaTe(Access_ToKen, Access_Uid):
             'ReleaseVersion': 'OB54',
             'Content-Type': 'application/x-www-form-urlencoded',
             'X-GA': 'v1 1',
-            'User-Agent': user_agent,
+            'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 7.1.2; ASUS_Z01QD Build/QKQ1.190825.002)',
             'Host': 'loginbp.ggpolarbear.com',
             'Connection': 'Keep-Alive',
             'Accept-Encoding': 'gzip'
@@ -446,7 +256,6 @@ async def ToKen_GeneRaTe(Access_ToKen, Access_Uid):
 
 async def GeT_LoGin_PorTs(JwT_ToKen, PayLoad):
     url = 'https://clientbp.common.ggbluefox.com/GetLoginData'
-    device = random_device_info()
     headers = {
         'Expect': '100-continue',
         'Authorization': f'Bearer {JwT_ToKen}',
@@ -454,7 +263,7 @@ async def GeT_LoGin_PorTs(JwT_ToKen, PayLoad):
         'X-GA': 'v1 1',
         'ReleaseVersion': 'OB54',
         'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': generate_user_agent(device),
+        'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 9; G011A Build/PI)',
         'Host': 'clientbp.common.ggbluefox.com',
         'Connection': 'close',
         'Accept-Encoding': 'gzip, deflate, br',
@@ -844,17 +653,14 @@ async def bot_login_and_connect(account: BotAccount):
     account.iv = iv
     account.timestamp = timestamp
 
-    # Use device profile for the payload
-    device = account.device_profile
-    
     PayLoad = (await CrEaTe_ProTo({
         3: str(datetime.now())[:-7], 4: "free fire", 5: 2, 7: '1.126.2',
-        8: f"Android OS {device['android_version']} / API-{random.randint(28, 34)} (RQ3A.210805.001)",
-        9: "Handheld", 10: device['carrier'], 11: "WIFI", 12: 1080, 13: 2400, 14: "440",
-        15: "ARMv8", 16: 6144, 17: device['gpu'], 18: "OpenGL ES 3.2 V@1.50",
+        8: "Android OS 11 / API-30 (RQ3A.210805.001)", 9: "Handheld",
+        10: "Verizon", 11: "WIFI", 12: 1080, 13: 2400, 14: "440",
+        15: "ARMv8", 16: 6144, 17: "Adreno (TM) 650", 18: "OpenGL ES 3.2 V@1.50",
         19: "Google|34a7dcdf-a7d5-4cb6-8d7e-3b0e448a0c57", 20: "",
-        21: device['lang'], 22: Access_Uid, 23: "4", 24: "Handheld",
-        25: device['device'], 29: Access_ToKen, 30: 3, 41: device['carrier'],
+        21: "en", 22: Access_Uid, 23: "4", 24: "Handheld",
+        25: "google G011A", 29: Access_ToKen, 30: 3, 41: "Verizon",
         42: "WIFI", 57: "1ac4b80ecf0478a44203bf8fac6120f5",
         60: 32966, 61: 29779, 62: 2479, 63: 914, 64: 31176,
         65: 32966, 66: 31176, 67: 32966, 70: 4, 73: 2,
