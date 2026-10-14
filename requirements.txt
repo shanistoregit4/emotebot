@@ -1,3 +1,4 @@
+httpx
 flask
 requests
 protobuf
@@ -9,3 +10,5 @@ psutil
 cfonts
 pycryptodome
 urllib3
+google-play-scraper
+python-dotenv

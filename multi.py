@@ -10,11 +10,14 @@ import re
 import time
 import threading
 import binascii
+import hashlib
 import random
 import socket
 import ssl
 import http.client
 import gzip
+import httpx
+from google_play_scraper import app as play_scraper
 from io import BytesIO
 from datetime import datetime
 from Crypto.Cipher import AES
@@ -25,11 +28,11 @@ from flask import Flask, request, jsonify
 
 # ---------- PROTOBUF IMPORTS (Script 1 PB2 folder) ----------
 import Pb2.DEcwHisPErMsG_pb2 as DEcwHisPErMsG_pb2
-import Pb2.MajoRLoGinrEq_pb2 as MajoRLoGinrEq_pb2
-import Pb2.MajoRLoGinrEs_pb2 as MajoRLoGinrEs_pb2
 import Pb2.PorTs_pb2 as PorTs_pb2
 import Pb2.sQ_pb2 as sQ_pb2
 import Pb2.Team_msg_pb2 as Team_msg_pb2
+import thunderFF_pb2
+import login_engine  # NORIX.TCP working login flow
 
 # ---------- SCRIPT 3 EMBEDDED PROTOBUF (safe login) ----------
 from google.protobuf import descriptor as _descriptor
@@ -62,7 +65,39 @@ app = Flask(__name__)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 loop = None
-accounts = []  # List holding BotAccount instances
+accounts = []
+
+# Diagnostics only: packet metadata, never full payloads or authentication secrets.
+def _diag(event, account=None, packet=None, **details):
+    stamp = datetime.now().astimezone().isoformat(timespec="seconds")
+    who = f" bot={account.account_index} uid={account.uid}" if account else ""
+    if packet is not None:
+        try:
+            raw = bytes(packet)
+            details.update({"bytes": len(raw), "header": raw[:2].hex(),
+                            "sha256_12": hashlib.sha256(raw).hexdigest()[:12]})
+        except Exception:
+            details["packet_metadata"] = "unavailable"
+    suffix = " ".join(f"{k}={v}" for k, v in details.items())
+    print(f"[TCP-DIAG {stamp}] {event}{who}" + (f" {suffix}" if suffix else ""), flush=True)
+
+# Updated OB55 HTTP client / connection configuration (from udp-level-main)
+HTTP_TIMEOUT = httpx.Timeout(15.0, connect=10.0)
+client = httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=False, follow_redirects=True)
+AES_KEY = b'Yg&tc%DEuh6%Zc^8'
+AES_IV = b'6oyZDr22E3ychjM%'
+GAME_HEADERS = {
+    "User-Agent": "UnityPlayer/2018.4.12f1 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)",
+    "Connection": "Keep-Alive",
+    "Accept-Encoding": "gzip",
+    "Content-Type": "application/x-www-form-urlencoded",
+    "Expect": "100-continue",
+    "X-Unity-Version": "2018.4.12f1",
+    "X-GA-SV": "1789535859",
+    "X-GA": "v1 1",
+    "ReleaseVersion": "OB55",
+}
+  # List holding BotAccount instances
 
 # ---------- ACCOUNT STATE CLASS ----------
 class BotAccount:
@@ -131,7 +166,7 @@ async def Guest_GeneRaTe(uid, password, retry_count=0):
                 if resp.status == 200:
                     resp_data = await resp.json()
                     if 'access_token' in resp_data and 'open_id' in resp_data:
-                        return resp_data['access_token'], resp_data['open_id']
+                        return resp_data['access_token'], resp_data['open_id'], resp_data.get("platform", 4)
                     elif resp_data.get('error') == 'error_too_many_requests' or resp_data.get('code') == 1006:
                         wait = min(2 ** retry_count, 32)
                         print(f"[-] Rate limit for {uid}, waiting {wait}s...")
@@ -142,150 +177,259 @@ async def Guest_GeneRaTe(uid, password, retry_count=0):
                         return None, None
                 else:
                     print(f"[-] HTTP {resp.status} for {uid}")
-                    return None, None
+                    return None, None, None
     except Exception as e:
         print(f"[-] Token error for {uid}: {e}")
-        return None, None
+        return None, None, None
 
-async def ToKen_GeneRaTe(Access_ToKen, Access_Uid):
+async def get_playstore_version():
     try:
-        PLaFTrom = "4"
-        Version = '2024010012'
-        V = '1.126.2'
+        loop_ = asyncio.get_running_loop()
+        result = await loop_.run_in_executor(
+            None, lambda: play_scraper('com.dts.freefireth', lang='hi', country='id')
+        )
+        return result.get("version")
+    except Exception:
+        return None
 
-        PyL = {
-            3: str(datetime.now())[:-7],
-            4: "free fire",
-            5: 2,
-            7: V,
-            8: "Android OS 11 / API-30 (RQ3A.210805.001)",
-            9: "Handheld",
-            10: "Verizon",
-            11: "WIFI",
-            12: 1080,
-            13: 2400,
-            14: "440",
-            15: "ARMv8",
-            16: 6144,
-            17: "Adreno (TM) 650",
-            18: "OpenGL ES 3.2 V@1.50",
-            19: "Google|34a7dcdf-a7d5-4cb6-8d7e-3b0e448a0c57",
-            20: "",
-            21: "en",
-            22: Access_Uid,
-            23: PLaFTrom,
-            24: "Handheld",
-            25: "google G011A",
-            29: Access_ToKen,
-            30: 3,
-            41: "Verizon",
-            42: "WIFI",
-            57: "1ac4b80ecf0478a44203bf8fac6120f5",
-            60: 32966,
-            61: 29779,
-            62: 2479,
-            63: 914,
-            64: 31176,
-            65: 32966,
-            66: 31176,
-            67: 32966,
-            70: 4,
-            73: 2,
-            74: "/data/app/com.dts.freefireth-g8eDE0T268FtFmnFZ2UpmA==/lib/arm",
-            76: 1,
-            77: "5b892aaabd688e571f688053118a162b|/data/app/com.dts.freefireth-g8eDE0T268FtFmnFZ2UpmA==/base.apk",
-            78: 6,
-            79: 1,
-            81: "64",
-            83: Version,
-            86: "OpenGLES3",
-            87: 255,
-            88: PLaFTrom,
-            89: "J\x03FD\x04\r_UH\x03\x0b\x16_\x03D^J>\x0fWT\x00\\=\nQ_;\x00\r;Z\x05a",
-            90: "Phoenix",
-            91: "AZ",
-            92: 10214,
-            93: "3rd_party",
-            94: "KqsHT7gtKWkK0gY/HwmdwXIhSiz4fQldX3YjZeK86XBTthKAf1bW4Vsz6Di0S8vqr0Jc4HX3TMQ8KaUU3GeVvYzWF9I=",
-            95: 111207,
-            97: 1,
-            98: 1,
-            99: f"{PLaFTrom}",
-            100: f"{PLaFTrom}"
-        }
+async def version_config():
+    app_version = await get_playstore_version()
+    if not app_version:
+        return None
+    api_url = (
+        "https://version.ggwhitehawk.com/live/ver.php"
+        f"?version={app_version}"
+        "&lang=hi&device=android&channel=android"
+        "&appstore=googleplay&region=BD"
+        "&whitelist_version=1.3.0&whitelist_sp_version=1.0.0"
+    )
+    try:
+        response = await client.get(api_url)
+        response.raise_for_status()
+        data = response.json()
+        server_url = data.get("server_url")
+        remote_version = data.get("remote_version")
+        latest_release_version = data.get("latest_release_version")
+        if not server_url or not remote_version or not latest_release_version:
+            return None
+        return latest_release_version, remote_version, server_url
+    except Exception as e:
+        print(f"[-] Version config error: {e}")
+        return None
 
-        PyL = (await CrEaTe_ProTo(PyL)).hex()
-        PaYload = bytes.fromhex(await EnC_AEs(PyL))
+async def _build_updated_majorlogin_payload(open_id, access_token, platform, client_version):
+    """OB55 MajorLogin payload copied to the EmoteBot connection layer from udp-level-main."""
+    proto = thunderFF_pb2.MajorLoginReq()
+    proto.event_time = str(datetime.now())[:-7]
+    proto.game_name = "free fire"
+    proto.platform_id = 1 if str(platform) in ["1", "4"] else int(platform)
+    proto.client_version = client_version
+    proto.client_version_code = "2019121229"
 
-        context = ssl._create_unverified_context()
-        conn = http.client.HTTPSConnection("loginbp.ggpolarbear.com", context=context, timeout=10)
-        headers = {
-            'X-Unity-Version': '2018.4.11f1',
-            'ReleaseVersion': 'OB54',
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-GA': 'v1 1',
-            'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 7.1.2; ASUS_Z01QD Build/QKQ1.190825.002)',
-            'Host': 'loginbp.ggpolarbear.com',
-            'Connection': 'Keep-Alive',
-            'Accept-Encoding': 'gzip'
-        }
+    # Same current connection/device values used by udp-level-main.
+    proto.system_software = "Android OS 12 / API-31 (SP1A.210812.016.C2/user.dxu.20260701.180839)"
+    proto.system_hardware = "Handheld"
+    proto.device_type = "Handheld"
+    proto.screen_width = 1600
+    proto.screen_height = 900
+    proto.screen_dpi = "300"
+    proto.processor_details = "x86-64 SSE3 SSE4.1 SSE4.2 AVX | 2400 | 4"
+    proto.memory = 5951
+    proto.gpu_renderer = "Adreno (TM) 640"
+    proto.unique_device_id = "Google|725030d8-6585-4f55-bcca-a6df7e59935b"
+    proto.client_ip = "103.145.112.210"
 
-        conn.request("POST", "/MajorLogin", body=PaYload, headers=headers)
-        response = conn.getresponse()
-        raw_data = response.read()
-        if response.getheader('Content-Encoding') == 'gzip':
-            with gzip.GzipFile(fileobj=BytesIO(raw_data)) as f:
-                raw_data = f.read()
+    proto.telecom_operator = "Citycell"
+    proto.network_operator_a = "Citycell"
+    proto.network_type = "WIFI"
+    proto.network_type_a = "WIFI"
+    proto.cpu_type = 2
+    proto.cpu_architecture = "64"
+    proto.gpu_version = "OpenGL ES 3.2"
+    proto.graphics_api = "OpenGLES2"
+    proto.language = "en"
+    proto.open_id = open_id
+    proto.open_id_type = str(platform)
+    proto.login_open_id_type = int(platform)
+    proto.access_token = access_token
+    proto.login_by = 3
+    proto.platform_sdk_id = 2
+    proto.origin_platform_type = str(platform)
+    proto.primary_platform_type = str(platform)
+    proto.reg_avatar = 1
+    proto.channel_type = 3
 
-        if response.status not in [200, 201]:
-            print(f"[-] MajorLogin failed. Status: {response.status}")
+    proto.memory_available.version = 55
+    proto.memory_available.hidden_value = 81
+    proto.external_storage_total = 34308
+    proto.external_storage_available = 30777
+    proto.internal_storage_total = 2519
+    proto.internal_storage_available = 243
+    proto.game_disk_storage_total = 34308
+    proto.game_disk_storage_available = 32224
+    proto.external_sdcard_total_storage = 34308
+    proto.external_sdcard_avail_storage = 32224
+    proto.library_path = "/data/app/~~UKDdGuy32C5yOa0KZe_ROA==/com.dts.freefireth-UAKF1gjDbXSGfpA07JDTKQ==/lib/arm64"
+    proto.library_token = "b8e0cd5e295eee42f5860d3c86e483dd|/data/app/~~UKDdGuy32C5yOa0KZe_ROA==/com.dts.freefireth-UAKF1gjDbXSGfpA07JDTKQ==/base.apk"
+    proto.client_using_version = "7428b253defc164018c604a1ebbfebdf"
+    proto.supported_astc_bitset = 4095
+    proto.analytics_detail = b"FwQVTgUPX1UaUllDDwcWCRBpWAUOUgsvA1snWlBaO1kFYg=="
+    proto.loading_time = 14582
+    proto.release_channel = "android"
+    proto.extra_info = "KqsHT4tDHGqm9PQ3syB24XA4N6SWy/Q/HfMFTQM+SgxmVqsgPK138ajtCFyVNW/Q7p6hxoenpRjeZ2NphiIosCZ3YDkONB5NAa+zTwNo7iabx/mj"
+    proto.android_engine_init_flag = 111207
+    proto.if_push = 1
+    proto.is_vpn = 0
+
+    return AES.new(AES_KEY, AES.MODE_CBC, AES_IV).encrypt(
+        pad(proto.SerializeToString(), AES.block_size)
+    )
+
+async def ToKen_GeneRaTe(Access_ToKen, Access_Uid, platform=4):
+    try:
+        cfg = await version_config()
+        if not cfg:
+            return None
+        release_version, client_version, server_url = cfg
+        payload = await _build_updated_majorlogin_payload(
+            Access_Uid and Access_Uid, Access_ToKen, platform, client_version
+        )
+
+        req_headers = GAME_HEADERS.copy()
+        req_headers["ReleaseVersion"] = release_version
+        response = await client.post(f"{server_url.rstrip('/')}/MajorLogin", headers=req_headers, content=payload)
+        if response.status_code != 200:
+            print(f"[-] MajorLogin failed: HTTP {response.status_code}")
+            return None
+        response_content = response.content
+        if len(response_content) < 40:
             return None
 
-        BesTo_data = json.loads(await DeCode_PackEt(raw_data.hex()))
-        JwT_ToKen = BesTo_data['8']['data']
-        combined_timestamp, key, iv = await GeT_Key_Iv(raw_data)
-
-        ip, port, ip2, port2 = await GeT_LoGin_PorTs(JwT_ToKen, PaYload)
-        if ip is None or port is None or ip2 is None or port2 is None:
-            print("[-] Failed to get valid ports")
+        # OB55 response may have a transport prefix; try direct + offsets like udp-level-main.
+        res_proto = None
+        for offset in [0, 64] + list(range(0, min(128, len(response_content)))):
+            try:
+                candidate = thunderFF_pb2.MajorLoginRes()
+                candidate.ParseFromString(response_content[offset:])
+                if candidate.region and candidate.token:
+                    res_proto = candidate
+                    break
+            except Exception:
+                continue
+        if res_proto is None:
             return None
-        return JwT_ToKen, key, iv, combined_timestamp, ip, port, ip2, port2
+
+        timestamp = res_proto.server_time
+        key = bytes(res_proto.aes_ak)
+        iv = bytes(res_proto.iv_i)
+        if not key or not iv:
+            print("[-] MajorLogin response did not contain aes_ak/iv_i")
+            return None
+
+        # GetLoginData must use the JWT and the URL returned by MajorLogin.
+        gl = await GeT_LoGin_PorTs(res_proto.token, payload, release_version, res_proto.url)
+        if not gl:
+            return None
+        ip, port, ip2, port2 = gl
+        return res_proto.token, key, iv, timestamp, ip, port, ip2, port2, res_proto.url
     except Exception as e:
         print(f"[-] Token generation error: {e}")
         return None
 
-async def GeT_LoGin_PorTs(JwT_ToKen, PayLoad):
-    url = 'https://clientbp.common.ggbluefox.com/GetLoginData'
-    headers = {
-        'Expect': '100-continue',
-        'Authorization': f'Bearer {JwT_ToKen}',
-        'X-Unity-Version': '2018.4.11f1',
-        'X-GA': 'v1 1',
-        'ReleaseVersion': 'OB54',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 9; G011A Build/PI)',
-        'Host': 'clientbp.common.ggbluefox.com',
-        'Connection': 'close',
-        'Accept-Encoding': 'gzip, deflate, br',
-    }
+async def GeT_LoGin_PorTs(JwT_ToKen, PayLoad, release_version="OB55", base_url=None):
+    """GetLoginData handling matched to udp-level-main.
+
+    OB55 GetLoginDataRes defines functional_addrs and informational_addrs
+    as scalar strings (not repeated fields).
+    """
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, data=PayLoad, ssl=False, timeout=5) as resp:
-                if resp.status != 200:
-                    return None, None, None, None
-                content = await resp.read()
+        if not base_url:
+            print("[-] GetLoginData: MajorLogin returned no URL")
+            return None, None, None, None
+
+        url = f"{base_url.rstrip('/')}/GetLoginData"
+        req_headers = GAME_HEADERS.copy()
+        req_headers["ReleaseVersion"] = release_version
+        req_headers["Authorization"] = f"Bearer {JwT_ToKen}"
+        req_headers["Host"] = "clientbp.ppmainecoonghj.com"
+
+        response = await client.post(url, headers=req_headers, content=PayLoad)
+        if response.status_code != 200:
+            print(f"[-] GetLoginData HTTP {response.status_code} from {url}")
+            return None, None, None, None
+
+        content = response.content
+        if not content:
+            print("[-] GetLoginData returned empty response")
+            return None, None, None, None
+
+        # This is the same protobuf used by udp-level-main.
+        # IMPORTANT: both fields are strings, so do NOT call list() on them.
+        info_addr = ""
+        func_addr = ""
+
+        for offset in range(min(128, len(content))):
+            try:
+                candidate = thunderFF_pb2.GetLoginDataRes()
+                candidate.ParseFromString(content[offset:])
+                if candidate.functional_addrs or candidate.informational_addrs:
+                    info_addr = candidate.informational_addrs
+                    func_addr = candidate.functional_addrs
+                    break
+            except Exception:
+                continue
+
+        # Exact full-response attempt as used by udp-level-main.
+        if not (info_addr or func_addr):
+            try:
+                candidate = thunderFF_pb2.GetLoginDataRes()
+                candidate.ParseFromString(content)
+                info_addr = candidate.informational_addrs
+                func_addr = candidate.functional_addrs
+            except Exception:
+                pass
+
+        def parse_addr(value):
+            if not isinstance(value, str) or not value:
+                return None
+            value = value.strip()
+            # Normally each protobuf field is exactly host:port.
+            try:
+                host, port = value.rsplit(":", 1)
+                if host and port.isdigit():
+                    return host, int(port)
+            except Exception:
+                pass
+            return None
+
+        chat = parse_addr(info_addr)
+        online = parse_addr(func_addr)
+
+        # Legacy encrypted-packet fallback only if the new protobuf fields
+        # could not be extracted.
+        if chat is None or online is None:
+            try:
                 decoded = await DeCode_PackEt(content.hex())
-                if not decoded:
-                    return None, None, None, None
-                data = json.loads(decoded)
-                if '32' not in data or '14' not in data:
-                    return None, None, None, None
-                address, address2 = data['32']['data'], data['14']['data']
-                if not address or not address2:
-                    return None, None, None, None
-                ip, port = address.rsplit(":", 1)
-                ip2, port2 = address2.rsplit(":", 1)
-                return ip, int(port), ip2, int(port2)
+                if decoded:
+                    data = json.loads(decoded)
+                    a_chat = data.get('32', {}).get('data')
+                    a_online = data.get('14', {}).get('data')
+                    if chat is None:
+                        chat = parse_addr(a_chat)
+                    if online is None:
+                        online = parse_addr(a_online)
+            except Exception as e:
+                print(f"[-] GetLoginData legacy decode failed: {e}")
+
+        if chat is None or online is None:
+            print("[-] GetLoginData returned no usable chat/online addresses")
+            print(f"[-] functional_addrs={func_addr!r}")
+            print(f"[-] informational_addrs={info_addr!r}")
+            print(f"[-] Response length: {len(content)} bytes")
+            return None, None, None, None
+
+        # EmoteBot expects chat first, online second.
+        return chat[0], chat[1], online[0], online[1]
     except Exception as e:
         print(f"[-] GetLoginData error: {e}")
         return None, None, None, None
@@ -317,12 +461,70 @@ async def SEndMsG(H, message, Uid, chat_id, key, iv):
     elif TypE == 'PrivaTe': msg_packet = await xSEndMsg(message, 2, Uid, Uid, key, iv)
     return msg_packet
 
+def _norix_build_ob55_online_auth(account_uid, token, kts, key, iv):
+    """Exact online auth builder from NORIX.TCP/bot_core.py."""
+    token_bytes = token.encode("utf-8")
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    enc_token = cipher.encrypt(pad(token_bytes, 16))
+    opcode = bytes.fromhex("830c")
+    uid_bytes = int(account_uid).to_bytes(8, byteorder="big")
+    kts_bytes = int(kts).to_bytes(4, byteorder="big")
+    len_bytes = len(enc_token).to_bytes(8, byteorder="big")
+    return opcode + uid_bytes + kts_bytes + len_bytes + enc_token, enc_token
+
+
+def _norix_create_auth_token_chat(account_id, jwt_token, timestamp, key, iv):
+    """Exact chat auth builder from NORIX.TCP/bot_core.py."""
+    K = bytes.fromhex(key) if isinstance(key, str) else key
+    V = bytes.fromhex(iv) if isinstance(iv, str) else iv
+    jwt_bytes = jwt_token.encode("utf-8")
+    ct = AES.new(K, AES.MODE_CBC, V).encrypt(pad(jwt_bytes, AES.block_size))
+    uid_b = int(account_id).to_bytes(8, "big")
+    ts_b = int(timestamp).to_bytes(4, "big")
+    len_b = len(ct).to_bytes(4, "big")
+    header = bytes.fromhex("6d19") + uid_b + ts_b + len_b
+    return (header + ct).hex()
+
+
+async def build_tcp_startup_packet(account_id, token, server_time, key, iv, region="BD", typ="OnLine"):
+    """Build the same OB55 TCP startup packet used by udp-level-main.
+    Online and Chat/Informational gateways require different prefixes.
+    """
+    uid_hex = f"{int(account_id):016x}"
+    timestamp_hex = f"{int(server_time):08x}"
+    encrypted_packet = (await encrypt_plaintext(token.encode(), key, iv)).hex()
+    encrypted_packet_length = f"{len(encrypted_packet) // 2:08x}"
+    reg = str(region or "BD").upper()
+    if typ == "OnLine":
+        prefix = "7119" if reg == "BD" else ("7114" if reg == "IND" else "7115")
+        return f"{prefix}{uid_hex}{timestamp_hex}00000000{encrypted_packet_length}{encrypted_packet}"
+    prefix = "9219" if reg == "BD" else ("9214" if reg == "IND" else "9215")
+    return f"{prefix}{uid_hex}{timestamp_hex}{encrypted_packet_length}{encrypted_packet}"
+
+async def _send_connection_keepalive(writer, region="BD"):
+    """OB55 TCP keepalive pulse used by udp-level-main.
+    Keeps the game gateway session active while there is no application traffic.
+    """
+    try:
+        reg = str(region or "BD").upper()
+        pulse = bytes.fromhex("0219" if reg == "BD" else ("0214" if reg == "IND" else "0215"))
+        if writer and not writer.is_closing():
+            writer.write(pulse)
+            await writer.drain()
+            return True
+    except Exception:
+        pass
+    return False
+
+
 async def SEndPacKeT(account: BotAccount, TypE, PacKeT):
     try:
         if TypE == 'ChaT' and account.whisper_writer:
+            _diag("send", account, PacKeT, channel="chat")
             account.whisper_writer.write(PacKeT)
             await account.whisper_writer.drain()
         elif TypE == 'OnLine' and account.online_writer:
+            _diag("send", account, PacKeT, channel="online")
             account.online_writer.write(PacKeT)
             await account.online_writer.drain()
         else:
@@ -330,45 +532,98 @@ async def SEndPacKeT(account: BotAccount, TypE, PacKeT):
     except Exception as e:
         print(f"[Bot {account.account_index}] Error sending packet ({TypE}): {e}")
 
-async def TcPOnLine(account: BotAccount, AutHToKen, reconnect_delay=0.5):
+async def TcPOnLine(account: BotAccount, startup_packet, reconnect_delay=1.0):
+    """Keep the OB55 Online TCP gateway alive using udp-level-main's flow."""
     while True:
+        reader = writer = None
+        ping_task = None
         try:
-            reader, writer = await asyncio.open_connection(account.online_ip, int(account.online_port))
+            reader, writer = await asyncio.open_connection(
+                account.online_ip, int(account.online_port)
+            )
+            raw_sock = writer.get_extra_info("socket")
+            if raw_sock:
+                try:
+                    raw_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                    raw_sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    raw_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 65536)
+                    raw_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65536)
+                except Exception:
+                    pass
+
             account.online_writer = writer
             account.online_connected = True
             print(f"[Bot {account.account_index}] Online connected to {account.online_ip}:{account.online_port}")
-            
-            bytes_payload = bytes.fromhex(AutHToKen)
-            account.online_writer.write(bytes_payload)
-            await account.online_writer.drain()
-            
+            _diag("connected", account, channel="online", endpoint=f"{account.online_ip}:{account.online_port}")
+
+            startup_bytes = bytes.fromhex(startup_packet)
+            _diag("send_auth_startup", account, startup_bytes, channel="online")
+            writer.write(startup_bytes)
+            await writer.drain()
+
+            # DISABLED: NORIX.TCP (working) sends only the auth packet on the online socket,
+            # no extra keepalive pulses. Block below kept for reference.
+            # # Same 2-byte OB55 pulse used by udp-level-main.
+            # pulse = bytes.fromhex(
+                # "0219" if str(account.region).upper() == "BD"
+                # else ("0214" if str(account.region).upper() == "IND" else "0215")
+            # )
+            # _diag("send_keepalive", account, pulse, channel="online", timing="immediate")
+            # writer.write(pulse)
+            # await writer.drain()
+
+            # async def info_keepalive():
+                # while True:
+                    # await asyncio.sleep(5)
+                    # if writer.is_closing():
+                        # return
+                    # try:
+                        # _diag("send_keepalive", account, pulse, channel="online", timing="periodic")
+                        # writer.write(pulse)
+                        # await writer.drain()
+                    # except Exception:
+                        # return
+
+            # ping_task = asyncio.create_task(info_keepalive())
+
             while True:
-                data2 = await reader.read(9999)
-                if not data2: break
-                
-                if data2.hex().startswith('0500') and len(data2.hex()) > 1000:
+                data2 = await reader.read(8192)
+                if not data2:
+                    _diag("connection_closed_by_peer", account, channel="online")
+                    raise ConnectionError("Online gateway closed the connection")
+                _diag("receive", account, data2, channel="online")
+                if data2.hex().startswith("0500") and len(data2.hex()) > 1000:
                     try:
                         packet = await DeCode_PackEt(data2.hex()[10:])
                         packet = json.loads(packet)
-                        OwNer_UiD, CHaT_CoDe, SQuAD_CoDe = await GeTSQDaTa(packet)
-                        
-                        JoinCHaT = await AutH_Chat(3, OwNer_UiD, CHaT_CoDe, account.key, account.iv)
-                        await SEndPacKeT(account, 'ChaT', JoinCHaT)
-                        
-                        message = f'[B][C]{await ArA_CoLor()}\n- WeLComE To Emote Bot ! '
-                        P = await SEndMsG(0, message, OwNer_UiD, OwNer_UiD, account.key, account.iv)
-                        await SEndPacKeT(account, 'ChaT', P)
-                    except Exception as parse_e:
+                        owner_uid, chat_code, squad_code = await GeTSQDaTa(packet)
+                        join_chat = await AutH_Chat(3, owner_uid, chat_code, account.key, account.iv)
+                        await SEndPacKeT(account, "ChaT", join_chat)
+                        message = f"[B][C]{await ArA_CoLor()}\n- WeLComE To Emote Bot ! "
+                        p = await SEndMsG(0, message, owner_uid, owner_uid, account.key, account.iv)
+                        await SEndPacKeT(account, "ChaT", p)
+                    except Exception:
                         pass
-                        
-            account.online_writer.close()
-            await account.online_writer.wait_closed()
+
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             print(f"[Bot {account.account_index}] ErroR With {account.online_ip}:{account.online_port} - {e}")
         finally:
-            account.online_writer = None
+            if ping_task:
+                ping_task.cancel()
+                try:
+                    await ping_task
+                except BaseException:
+                    pass
             account.online_connected = False
-        
+            account.online_writer = None
+            if writer:
+                try:
+                    writer.close()
+                    await writer.wait_closed()
+                except Exception:
+                    pass
         await asyncio.sleep(reconnect_delay)
 
 async def TcPChaT(account: BotAccount, AutHToKen, LoGinDaTaUncRypTinG, ready_event, reconnect_delay=0.5):
@@ -386,6 +641,7 @@ async def TcPChaT(account: BotAccount, AutHToKen, LoGinDaTaUncRypTinG, ready_eve
                 ready_event.set()
                 
             print(f"[Bot {account.account_index}] Chat connected to {account.chat_ip}:{account.chat_port}")
+            _diag("connected", account, channel="chat", endpoint=f"{account.chat_ip}:{account.chat_port}")
             
             if LoGinDaTaUncRypTinG.Clan_ID:
                 clan_id = LoGinDaTaUncRypTinG.Clan_ID
@@ -397,7 +653,10 @@ async def TcPChaT(account: BotAccount, AutHToKen, LoGinDaTaUncRypTinG, ready_eve
                     
             while True:
                 data = await reader.read(9999)
-                if not data: break
+                if not data:
+                    _diag("connection_closed_by_peer", account, channel="chat")
+                    break
+                _diag("receive", account, data, channel="chat")
                 
                 if data.hex().startswith("120000"):
                     msg = await DeCode_PackEt(data.hex()[10:])
@@ -539,25 +798,32 @@ async def perform_emote(account: BotAccount, team_code: str, uids: list, emote_i
     try:
         if not account.online_connected or not account.online_writer:
             raise Exception("Selected bot online connection dropped")
-            
+
+        _diag("action_start", account, action="join_emote_leave", targets=len(uids), emote_id=emote_id)
         EM = await GenJoinSquadsPacket(team_code, account.key, account.iv)
+        _diag("stage_join", account, EM, builder="GenJoinSquadsPacket", team_code_length=len(str(team_code)))
         await SEndPacKeT(account, 'OnLine', EM)
         await asyncio.sleep(1.0)
-        
+
         for uid_str in uids:
             uid = int(uid_str)
             H = await Emote_k(uid, emote_id, account.key, account.iv, account.region)
+            _diag("stage_emote", account, H, target_uid=uid)
             await SEndPacKeT(account, 'OnLine', H)
-            
+
         await asyncio.sleep(0.5)
         LV = await ExiT(account.target_uid, account.key, account.iv)
+        _diag("stage_leave", account, LV)
         await SEndPacKeT(account, 'OnLine', LV)
+        _diag("action_packets_sent", account, action="join_emote_leave")
         return {"status": "success"}
     except Exception as e:
+        _diag("action_error", account, error=type(e).__name__, message=str(e)[:180])
         print(f"[Bot {account.account_index}] Perform emote error: {e}")
         raise
     finally:
         account.is_busy = False
+        _diag("action_finished", account, busy=False)
 
 @app.route('/bots')
 @app.route('/status')
@@ -609,9 +875,15 @@ def join_team():
     # Mark as busy so it doesn't get scheduled simultaneously 
     available_account.is_busy = True
     
-    asyncio.run_coroutine_threadsafe(
+    future = asyncio.run_coroutine_threadsafe(
         perform_emote(available_account, team_code, uids, emote_id), loop
     )
+    def _log_action_future(done_future):
+        try:
+            done_future.result()
+        except Exception as exc:
+            _diag("request_task_failed", available_account, error=type(exc).__name__, message=str(exc)[:180])
+    future.add_done_callback(_log_action_future)
 
     return jsonify({
         "status": "success",
@@ -629,91 +901,60 @@ def run_flask():
 # ========== BOT PER-ACCOUNT RUNNER ==========
 async def bot_login_and_connect(account: BotAccount):
     print(f"[Bot {account.account_index}] Starting login for {account.uid}")
-    
-    Access_ToKen, Access_Uid = await Guest_GeneRaTe(account.uid, account.password)
-    if not Access_ToKen or not Access_Uid:
-        print(f"[Bot {account.account_index}] ErroR - InvaLid AccounT")
+
+    # Use NORIX.TCP's working end-to-end login, not Emote Bot's older
+    # MajorLogin payload that was returning HTTP 400.
+    result = await login_engine.do_login(
+        account.uid, account.password, str(account.region or "IND").upper()
+    )
+    if not result:
+        print(f"[Bot {account.account_index}] NORIX login failed")
         return None
 
-    token_res = await ToKen_GeneRaTe(Access_ToKen, Access_Uid)
-    if not token_res:
-        print(f"[Bot {account.account_index}] TarGeT AccounT => BannEd / NoT ReGisTeReD !")
-        return None
+    account.target_uid = int(result["bot_uid"])
+    account.jwt_token = result["token"]
+    account.key = result["key"]
+    account.iv = result["iv"]
+    account.timestamp = int(result["timestamp"])
+    account.region = str(result["region"] or account.region).upper()
+    account.chat_ip = result["chat_ip"]
+    account.chat_port = int(result["chat_port"])
+    account.online_ip = result["online_ip"]
+    account.online_port = int(result["online_port"])
 
-    JwT_ToKen, key, iv, timestamp, ip, port, ip2, port2 = token_res
+    print(
+        f"[Bot {account.account_index}] NORIX login OK | UID: {account.target_uid} "
+        f"| Region: {account.region} | Chat: {account.chat_ip}:{account.chat_port} "
+        f"| Online: {account.online_ip}:{account.online_port}"
+    )
 
-    try:
-        AfTer_DeC_JwT = jwt.decode(JwT_ToKen, options={"verify_signature": False})
-        account.target_uid = AfTer_DeC_JwT.get('account_id')
-    except:
-        pass
-
-    account.jwt_token = JwT_ToKen
-    account.key = key
-    account.iv = iv
-    account.timestamp = timestamp
-
-    PayLoad = (await CrEaTe_ProTo({
-        3: str(datetime.now())[:-7], 4: "free fire", 5: 2, 7: '1.126.2',
-        8: "Android OS 11 / API-30 (RQ3A.210805.001)", 9: "Handheld",
-        10: "Verizon", 11: "WIFI", 12: 1080, 13: 2400, 14: "440",
-        15: "ARMv8", 16: 6144, 17: "Adreno (TM) 650", 18: "OpenGL ES 3.2 V@1.50",
-        19: "Google|34a7dcdf-a7d5-4cb6-8d7e-3b0e448a0c57", 20: "",
-        21: "en", 22: Access_Uid, 23: "4", 24: "Handheld",
-        25: "google G011A", 29: Access_ToKen, 30: 3, 41: "Verizon",
-        42: "WIFI", 57: "1ac4b80ecf0478a44203bf8fac6120f5",
-        60: 32966, 61: 29779, 62: 2479, 63: 914, 64: 31176,
-        65: 32966, 66: 31176, 67: 32966, 70: 4, 73: 2,
-        74: "/data/app/com.dts.freefireth-g8eDE0T268FtFmnFZ2UpmA==/lib/arm",
-        76: 1, 77: "5b892aaabd688e571f688053118a162b|/data/app/com.dts.freefireth-g8eDE0T268FtFmnFZ2UpmA==/base.apk",
-        78: 6, 79: 1, 81: "64", 83: '2024010012', 86: "OpenGLES3",
-        87: 255, 88: "4", 89: "J\x03FD\x04\r_UH\x03\x0b\x16_\x03D^J>\x0fWT\x00\\=\nQ_;\x00\r;Z\x05a",
-        90: "Phoenix", 91: "AZ", 92: 10214, 93: "3rd_party",
-        94: "KqsHT7gtKWkK0gY/HwmdwXIhSiz4fQldX3YjZeK86XBTthKAf1bW4Vsz6Di0S8vqr0Jc4HX3TMQ8KaUU3GeVvYzWF9I=",
-        95: 111207, 97: 1, 98: 1, 99: "4", 100: "4"
-    })).hex()
-    PayLoad = bytes.fromhex(await EnC_AEs(PayLoad))
-
-    LoGinDaTa = await GeT_LoGin_PorTs(JwT_ToKen, PayLoad)
-    if not LoGinDaTa or LoGinDaTa[0] is None:
-        print(f"[Bot {account.account_index}] ErroR - GeTinG PorTs From LoGin DaTa !")
-        return None
-
-    account.chat_ip, account.chat_port, account.online_ip, account.online_port = LoGinDaTa
-
-    try:
-        url = 'https://clientbp.common.ggbluefox.com/GetLoginData'
-        headers = {'Authorization': f'Bearer {JwT_ToKen}'}
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, data=PayLoad, ssl=False, timeout=5) as resp:
-                if resp.status == 200:
-                    content = await resp.read()
-                    decoded = await DeCode_PackEt(content.hex())
-                    if decoded:
-                        data = json.loads(decoded)
-                        if '3' in data:
-                            account.region = data['3']['data'].lower()
-    except:
-        pass
-
-    AutHToKen = await xAuThSTarTuP(int(account.target_uid), JwT_ToKen, int(timestamp), key, iv)
-    ready_event = asyncio.Event()
+    # Use NORIX's exact TCP authentication packets for both gateways.
+    online_auth, _ = _norix_build_ob55_online_auth(
+        account.target_uid, account.jwt_token, account.timestamp,
+        account.key, account.iv
+    )
+    online_startup = online_auth.hex()
+    chat_startup = _norix_create_auth_token_chat(
+        account.target_uid, account.jwt_token, account.timestamp,
+        account.key, account.iv
+    )
 
     class DummyLoginData:
-        pass
+        Clan_ID = None
+        Clan_Compiled_Data = None
+
     LoGinDaTaUncRypTinG = DummyLoginData()
-    LoGinDaTaUncRypTinG.Clan_ID = None
-    LoGinDaTaUncRypTinG.Clan_Compiled_Data = None
+    ready_event = asyncio.Event()
 
     task1 = asyncio.create_task(
-        TcPChaT(account, AutHToKen, LoGinDaTaUncRypTinG, ready_event)
+        TcPChaT(account, chat_startup, LoGinDaTaUncRypTinG, ready_event)
     )
 
     await ready_event.wait()
     await asyncio.sleep(1)
 
     task2 = asyncio.create_task(
-        TcPOnLine(account, AutHToKen)
+        TcPOnLine(account, online_startup)
     )
 
     print(f"\n[Bot {account.account_index}] STarTinG And OnLine on TarGet: {account.target_uid}")

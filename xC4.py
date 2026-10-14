@@ -178,21 +178,31 @@ async def GeT_Status(PLayer_Uid , K , V):
 async def SPam_Room(Uid , Rm , Nm , K , V):
     fields = {1: 78, 2: {1: int(Rm), 2: f"[{ArA_CoLor()}]{Nm}", 3: {2: 1, 3: 1}, 4: 330, 5: 1, 6: 201, 10: xBunnEr(), 11: int(Uid), 12: 1}}
     return await GeneRaTePk((await CrEaTe_ProTo(fields)).hex() , '0e15' , K , V)
+# OLD (stale 1.111.1 stripped join packet) kept below, disabled:
+#async def GenJoinSquadsPacket(code,  K , V):
+#    fields = {}
+#    fields[1] = 4
+#    fields[2] = {}
+#    fields[2][4] = bytes.fromhex("01090a0b121920")
+#    fields[2][5] = str(code)
+#    fields[2][6] = 6
+#    fields[2][8] = 1
+#    fields[2][9] = {}
+#    fields[2][9][2] = 800
+#    fields[2][9][6] = 11
+#    fields[2][9][8] = "1.111.1"
+#    fields[2][9][9] = 5
+#    fields[2][9][10] = 1
+#    return await GeneRaTePk((await CrEaTe_ProTo(fields)).hex() , '0515' , K , V)   
+# NEW: same join packet NORIX.TCP uses in its working /join (JoinSq_original)
 async def GenJoinSquadsPacket(code,  K , V):
-    fields = {}
-    fields[1] = 4
-    fields[2] = {}
-    fields[2][4] = bytes.fromhex("01090a0b121920")
-    fields[2][5] = str(code)
-    fields[2][6] = 6
-    fields[2][8] = 1
-    fields[2][9] = {}
-    fields[2][9][2] = 800
-    fields[2][9][6] = 11
-    fields[2][9][8] = "1.111.1"
-    fields[2][9][9] = 5
-    fields[2][9][10] = 1
-    return await GeneRaTePk((await CrEaTe_ProTo(fields)).hex() , '0515' , K , V)   
+    fields = {1: 4, 2: {4: "\u0001\u0007\t\n\u000b\u0012\u0019 '", 5: str(code), 6: 6, 8: 1,
+        9: {1: "08FFF3BE903F27DF0203110111110000006B0003006800169194106F13CF106E4676251411010404dfe9e8b5ca3ca4f96a3119c00000004f03060301cacfa16d",
+            2: 130, 3: "tY_S\u0013\b\u0001M\u0002\u0000T\u0000\u0005\u000e\b\t\u0002\u0000\u0003U\u0003\u0001V\u000fR\u000e\tRQ\u0002\u0004\u0005US\u0003XS\u0005\u0001\u0002\u0011\u0001\u0002JuTAEN\u001e\u0002\u001c\u0002\u001f\u0013\b\u0003M\u001cDbz_Q@}p_QOgsC\u001dYVI\u0004UAAj_ga\u0004\u0012\u0000K\u001d\u0007_t\u0019b\bCx\u0002UeGat\u001fTTCBLER`\u0006\u0001\r\f\u0012\u0006\u0005N^^\u0002acH~r\u0004_\u0003RO|\u000bcd_@~`Rnqrgh\n\u0015\nL\\Nh\u0000~G\u000et\u0000eb]VQ\u0006t^F[ZIGxCdZD\u000b\u0011\u0002OA~LP@\u000fcSDyATQApaT^{|wa]\\\u0001E\u000f\u0013\nJfxve}\u0004J\u0003c{YL\u0007^^yDYQf\bhe\u0005_wg\r\u0010\u0007\bEHpX@||\u0002Z\\uTGyA\u0001JP\u0005t~VkTE\u0000J\\\u000b\u0013\nMr\u0018zTzK}qE]vnvwROuheYvwduvQ\r\u001a\u0005M\u0006z\u001dfXfzvHFc~dXUz}O\u001aB\u0005t\u0002i\u001co_\u0004\u0012\u0003\u0007J\u0006b\u0003\u000eqlfvbEstgu~wB\u0001v@`yI\u0002ZPx\f\u0014\u0003NR\u0002yBZvuD_cd\u0004q]lH]\u0007bD}pCe\t\u0004t\n",
+            4: "w^_R", 6: 11, 7: "\u0014\u0004aqrg\u0015\u0013", 8: "1.132.1", 9: 3, 10: 2,
+            11: "\u0003bbSQ6wxegh9qAdV2KyoVleA17yPmYF+yTnOrl+JMknmppeUBe5ZsiHueP2mZZ4KOs6b2Ail1S9z3qIeU9hGFZ2M6PP39/zjIc/RFVPAkgDagySswMVmYaPhkzU5IqNPow2843fyQUz9xI10NdMhl1WiI4Y6wCXBotiUS9wSgujQ4j0fWXUyklCxBWo8r27hyoGSVrPdTPXFMnJJpPRRFFmWqc3fWvMg+BNfxSRJOZRSrkzG0nNvSIJ4uZB2pqAlHIPEYx7bI6zsgwUVDiLZJKTUTyuCGbOd1DegDUFfazFesTG1LJknT5WhgzCsrBIy+f2l+LeJe5DW7wEwNaHambM7ECXcJcLIhB9kJJsW0tFvXkk3HSdcQ8N1K6wjSKWhpkW0kV8Zrjj0jkhS/7AZ6T9GJRIA827YDtTorBvbx1UkXjYrqYI1nSa2GaMexGnqlurc5DE3v1R+mUBI9GqmjEPgTSYVBxyeCdQMHaMXGtspAhvkiO84ToU87sP45pylDEfFOVoc/rcmdzWeqlYPsv6txKRtIHcb0cO+MoVShoU8ZUVRDF3znbqzVrscPIfplBaa79lwvQqzRubLl9XY="},
+        11: {1: "IDC4", 2: 281, 3: "ME"}, 13: "fr", 16: "7OR\u0019", 20: "\b\u0015", 27: "\bH\u0010\u0003"}}
+    return await GeneRaTePk((await CrEaTe_ProTo(fields)).hex() , '0515' , K , V)
 async def GenJoinGlobaL(owner , code , K, V):
     fields = {
     1: 4,
@@ -245,7 +255,8 @@ async def Emote_k(TarGeT , idT, K, V,region):
 
 async def GeTSQDaTa(D):
     uid = D['5']['data']['1']['data']
-    chat_code = D["5"]["data"]["14"]["data"]
+    # chat_code = D["5"]["data"]["14"]["data"]
+    chat_code = D["5"]["data"]["17"]["data"]  # NORIX.TCP uses field 17
     squad_code = D["5"]["data"]["31"]["data"]
 
 

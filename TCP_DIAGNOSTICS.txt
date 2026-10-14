@@ -1,0 +1,7 @@
+Emote Bot TCP diagnostics build
+
+Preserves the existing login -> join -> emote(s) -> leave flow. xC4.py packet builders and packet values are unchanged.
+
+Added logs: TCP connect/disconnect and receive metadata; outgoing packet byte length, 2-byte header and short SHA-256 fingerprint; labels for join/emote/leave stages; async task failure logging.
+
+Full packet payloads, auth tokens, AES keys and IVs are not logged. Logs include account UID and endpoint; redact before sharing publicly. This diagnostic build does not claim to prevent blacklisting.
