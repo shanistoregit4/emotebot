@@ -105,7 +105,7 @@ class BotAccount:
         self.uid = uid
         self.password = password
         self.account_index = account_index
-        
+
         # State variables isolated per account
         self.target_uid = int(uid)
         self.jwt_token = None
@@ -113,19 +113,23 @@ class BotAccount:
         self.iv = None
         self.timestamp = None
         self.region = 'ind'
-        
+
         self.chat_ip = None
         self.chat_port = None
         self.online_ip = None
         self.online_port = None
-        
+
         self.online_writer = None
         self.whisper_writer = None
-        
+
         # Concurrency & Distribution tracking
         self.chat_connected = False
         self.online_connected = False
         self.is_busy = False
+
+        # Queue / failover tracking
+        self.fail_count = 0         # consecutive connection failures (chat+online)
+        self.is_active = False      # currently one of the active slots
 
 # ========== SAFE LOGIN FUNCTIONS (from Script 3) ==========
 async def encrypt_plaintext(plaintext, key, iv):
@@ -962,52 +966,157 @@ async def bot_login_and_connect(account: BotAccount):
     await asyncio.gather(task1, task2)
 
 async def run_account_loop(account: BotAccount):
+    """Loop for an ACTIVE account. On 5 consecutive failures, mark as failed and wake the manager."""
+    MAX_FAILS = 5
     while True:
         try:
             await asyncio.wait_for(bot_login_and_connect(account), timeout=7 * 60 * 60)
+            # Successful run — reset fail counter
+            account.fail_count = 0
         except asyncio.TimeoutError:
             print(f"[Bot {account.account_index}] Token ExpiRed! ResTartinG...")
+            account.fail_count = 0  # timeout is normal expiry, not a failure
+        except asyncio.CancelledError:
+            # Task cancelled by queue manager — stop cleanly
+            account.is_active = False
+            print(f"[Bot {account.account_index}] Deactivated (moved to queue).")
+            return
         except Exception as e:
-            print(f"[Bot {account.account_index}] ErroR TcP - {e} => ResTarTinG...")
-        
+            account.fail_count += 1
+            print(f"[Bot {account.account_index}] ErroR TcP - {e} => ResTarTinG... (fail {account.fail_count}/{MAX_FAILS})")
+            if account.fail_count >= MAX_FAILS:
+                account.is_active = False
+                print(f"[Bot {account.account_index}] Reached {MAX_FAILS} failures — marking as FAILED.")
+                # Signal the queue manager
+                if _queue_event is not None:
+                    _queue_event.set()
+                return
+
         await asyncio.sleep(5) # Delay before reconnecting a failed account
+
+# ========== QUEUE MANAGER ==========
+_queue_event: asyncio.Event = None
+
+async def queue_manager(active_limit: int, all_accounts: list):
+    """
+    Watches the active pool. When an active bot fails (is_active=False),
+    pulls the same number of replacements from the queue (inactive bots).
+    Never exceeds active_limit concurrent bots.
+    """
+    global _queue_event
+    _queue_event = asyncio.Event()
+
+    active_tasks: dict = {}   # account_index -> asyncio.Task
+
+    # Bootstrap: activate the first `active_limit` accounts
+    queue = list(all_accounts)  # order preserved; front = next to activate
+    to_activate = queue[:active_limit]
+    queue = queue[active_limit:]
+
+    for acc in to_activate:
+        acc.is_active = True
+        t = asyncio.create_task(run_account_loop(acc))
+        active_tasks[acc.account_index] = t
+        print(f"[Queue] Activated Bot {acc.account_index} (uid={acc.uid})")
+
+    print(f"[Queue] {len(active_tasks)} active / {len(queue)} in queue  (limit={active_limit})")
+
+    while True:
+        await _queue_event.wait()
+        _queue_event.clear()
+
+        # Find slots that have gone inactive (failed)
+        failed = [acc for acc in all_accounts if not acc.is_active and acc.account_index in active_tasks]
+        for acc in failed:
+            t = active_tasks.pop(acc.account_index, None)
+            if t and not t.done():
+                t.cancel()
+                try:
+                    await t
+                except (asyncio.CancelledError, Exception):
+                    pass
+            print(f"[Queue] Bot {acc.account_index} removed from active pool.")
+
+        # Fill empty slots from queue
+        slots_needed = active_limit - len(active_tasks)
+        if slots_needed > 0 and queue:
+            fill = queue[:slots_needed]
+            queue = queue[slots_needed:]
+            for acc in fill:
+                acc.is_active = True
+                acc.fail_count = 0
+                t = asyncio.create_task(run_account_loop(acc))
+                active_tasks[acc.account_index] = t
+                print(f"[Queue] Promoted Bot {acc.account_index} (uid={acc.uid}) from queue  "
+                      f"({len(active_tasks)} active / {len(queue)} remaining in queue)")
+        elif slots_needed > 0:
+            print(f"[Queue] {slots_needed} slot(s) empty but queue is exhausted.")
+
+        # Clean up any tasks that finished on their own
+        for idx in list(active_tasks.keys()):
+            if active_tasks[idx].done():
+                active_tasks.pop(idx)
 
 # ========== MAIN ENTRY ==========
 def load_accounts(filename='bot.txt'):
+    """
+    Parse bot.txt.
+    Optional first line: active=<N>   (sets the concurrent active limit)
+    Remaining lines: uid:password
+    Returns (active_limit, [BotAccount, ...])
+    """
+    active_limit = None
     accs = []
     if not os.path.exists(filename):
         print(f"[-] Credentials file '{filename}' not found.")
-        return accs
+        return active_limit, accs
     with open(filename, 'r') as f:
         lines = f.read().splitlines()
-        for i, line in enumerate(lines):
-            if ':' in line:
-                uid, pwd = line.split(':', 1)
-                accs.append(BotAccount(uid.strip(), pwd.strip(), i + 1))
-    return accs
+
+    account_index = 1
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        # Check for active=N directive
+        if line.lower().startswith('active='):
+            try:
+                active_limit = int(line.split('=', 1)[1].strip())
+            except ValueError:
+                print(f"[!] Invalid active= value: {line}")
+            continue
+        if ':' in line:
+            uid, pwd = line.split(':', 1)
+            accs.append(BotAccount(uid.strip(), pwd.strip(), account_index))
+            account_index += 1
+
+    return active_limit, accs
 
 async def StarTinG():
     global loop, accounts
     loop = asyncio.get_running_loop()
-    
-    accounts = load_accounts()
+
+    active_limit, accounts = load_accounts()
     if not accounts:
         print("[-] No accounts loaded. Exiting.")
         return
-        
-    print(f"[+] Loaded {len(accounts)} accounts. Starting bots...")
+
+    print(f"[+] Loaded {len(accounts)} accounts.")
+
+    if active_limit is not None and active_limit > 0:
+        effective_limit = min(active_limit, len(accounts))
+        print(f"[+] Active limit from bot.txt: {active_limit}  "
+              f"(effective: {effective_limit}, queue size: {len(accounts) - effective_limit})")
+    else:
+        effective_limit = len(accounts)
+        print(f"[+] No active= limit set — running all {effective_limit} bots.")
 
     # Start Flask API in a daemon thread
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
 
-    # Start isolated tasks for each account
-    tasks = []
-    for acc in accounts:
-        tasks.append(asyncio.create_task(run_account_loop(acc)))
-        
-    # Wait for all account tasks (they loop infinitely)
-    await asyncio.gather(*tasks)
+    # Run queue manager (handles activation, failover, limits)
+    await queue_manager(effective_limit, accounts)
 
 if __name__ == '__main__':
     asyncio.run(StarTinG())
